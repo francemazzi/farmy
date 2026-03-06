@@ -1,0 +1,10 @@
+.env
+dataset/
+server/node_modules/
+client/node_modules/
+server/dist/
+client/dist/
+server/.env
+server/prisma/*.db
+server/prisma/*.db-wal
+server/prisma/*.db-shm
