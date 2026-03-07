@@ -9,7 +9,7 @@ dotenvConfig({ path: resolve(__dirname, "../../.env") });
 
 export const config = {
   port: 7771,
-  host: "localhost",
+  host: process.env.HOST || "localhost",
   jwtSecret: process.env.JWT_SECRET || "farmy-dev-secret",
   jwtExpiry: "24h",
   cookieName: "farmy_token",

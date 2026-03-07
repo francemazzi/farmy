@@ -758,7 +758,292 @@ describe("Delivery days matching", () => {
     });
     expect(res.statusCode).toBe(200);
   });
+});
 
+// ============================================================
+// ORDER FLOW (end-to-end: cliente creates order with delivery zone)
+// ============================================================
+let orderId: string;
+
+describe("Order flow - Cliente crea ordine con consegna in zona", () => {
+  it("storefront should include stock id", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/storefront/${companyId}`,
+      headers: { cookie: clienteCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const product = res.json().products.find((p: any) => p.name === "Zucchine Bio");
+    expect(product).toBeDefined();
+    expect(product.stocks[0].id).toBeDefined();
+  });
+
+  it("cliente should create an order with delivery zone", async () => {
+    // Use a delivery date 14 days in the future (well beyond the 2-day limit)
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 14);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/orders",
+      headers: { cookie: clienteCookie },
+      payload: {
+        companyId,
+        deliveryDate: futureDate.toISOString(),
+        deliveryZoneId,
+        paymentMethod: "CASH",
+        notes: "Citofono 3B, piano terra",
+        items: [
+          { stockId, quantity: 5 },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().companyId).toBe(companyId);
+    expect(res.json().status).toBe("PENDING");
+    expect(res.json().paymentMethod).toBe("CASH");
+    expect(res.json().totalAmount).toBe(3.5 * 5); // price * quantity
+    expect(res.json().items).toHaveLength(1);
+    expect(res.json().items[0].unitPrice).toBe(3.5);
+    expect(res.json().items[0].quantity).toBe(5);
+    orderId = res.json().id;
+  });
+
+  it("should reject order with empty items", async () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 14);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/orders",
+      headers: { cookie: clienteCookie },
+      payload: {
+        companyId,
+        deliveryDate: futureDate.toISOString(),
+        items: [],
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("should reject order with invalid stockId", async () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 14);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/orders",
+      headers: { cookie: clienteCookie },
+      payload: {
+        companyId,
+        deliveryDate: futureDate.toISOString(),
+        items: [{ stockId: "nonexistent", quantity: 1 }],
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("cliente should list their orders", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/orders/my",
+      headers: { cookie: clienteCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().length).toBeGreaterThan(0);
+    const myOrder = res.json().find((o: any) => o.id === orderId);
+    expect(myOrder).toBeDefined();
+    expect(myOrder.company.name).toBe("Ortofrutta Bio Lorenzo");
+  });
+
+  it("venditore should list company orders", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/companies/${companyId}/orders`,
+      headers: { cookie: venditoreCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().length).toBeGreaterThan(0);
+    const order = res.json().find((o: any) => o.id === orderId);
+    expect(order).toBeDefined();
+    expect(order.customerUser.name).toBe("Marco Rossi");
+    expect(order.deliveryZone.name).toBe("Milano e Provincia");
+  });
+
+  it("venditore should filter orders by status", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/companies/${companyId}/orders?status=PENDING`,
+      headers: { cookie: venditoreCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().length).toBeGreaterThan(0);
+
+    const resEmpty = await app.inject({
+      method: "GET",
+      url: `/api/companies/${companyId}/orders?status=DELIVERED`,
+      headers: { cookie: venditoreCookie },
+    });
+    expect(resEmpty.json()).toHaveLength(0);
+  });
+
+  it("should get order detail", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/orders/${orderId}`,
+      headers: { cookie: clienteCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().id).toBe(orderId);
+    expect(res.json().items).toHaveLength(1);
+    expect(res.json().deliveryZone.name).toBe("Milano e Provincia");
+  });
+
+  it("venditore should also access order detail", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/orders/${orderId}`,
+      headers: { cookie: venditoreCookie },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("cliente should update notes on pending order", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/orders/${orderId}`,
+      headers: { cookie: clienteCookie },
+      payload: { notes: "Citofono 3B, secondo piano" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().notes).toBe("Citofono 3B, secondo piano");
+  });
+
+  it("venditore should update order status to CONFIRMED", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/orders/${orderId}`,
+      headers: { cookie: venditoreCookie },
+      payload: { status: "CONFIRMED" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("CONFIRMED");
+  });
+
+  it("cliente should NOT modify notes after status is CONFIRMED", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/orders/${orderId}`,
+      headers: { cookie: clienteCookie },
+      payload: { notes: "Changed again" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("venditore should advance status through the flow", async () => {
+    for (const status of ["PREPARING", "SHIPPED", "DELIVERED"]) {
+      const res = await app.inject({
+        method: "PUT",
+        url: `/api/orders/${orderId}`,
+        headers: { cookie: venditoreCookie },
+        payload: { status },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().status).toBe(status);
+    }
+  });
+
+  it("cliente should NOT cancel a DELIVERED order", async () => {
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/orders/${orderId}/cancel`,
+      headers: { cookie: clienteCookie },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("Order cancellation flow", () => {
+  let cancelOrderId: string;
+
+  it("create another order for cancellation test", async () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 14);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/orders",
+      headers: { cookie: clienteCookie },
+      payload: {
+        companyId,
+        deliveryDate: futureDate.toISOString(),
+        deliveryZoneId,
+        items: [{ stockId, quantity: 2 }],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    cancelOrderId = res.json().id;
+  });
+
+  it("cliente should cancel PENDING order (≥2 days before delivery)", async () => {
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/orders/${cancelOrderId}/cancel`,
+      headers: { cookie: clienteCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("CANCELLED");
+  });
+
+  it("should NOT cancel an already cancelled order", async () => {
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/orders/${cancelOrderId}/cancel`,
+      headers: { cookie: clienteCookie },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("venditore can cancel any non-cancelled order", async () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 14);
+
+    // Create order
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/orders",
+      headers: { cookie: clienteCookie },
+      payload: {
+        companyId,
+        deliveryDate: futureDate.toISOString(),
+        items: [{ stockId, quantity: 1 }],
+      },
+    });
+    const vendorCancelId = createRes.json().id;
+
+    // Confirm it
+    await app.inject({
+      method: "PUT",
+      url: `/api/orders/${vendorCancelId}`,
+      headers: { cookie: venditoreCookie },
+      payload: { status: "CONFIRMED" },
+    });
+
+    // Venditore cancels
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/orders/${vendorCancelId}/cancel`,
+      headers: { cookie: venditoreCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("CANCELLED");
+  });
+});
+
+// ============================================================
+// CLEANUP: delete remaining test data
+// ============================================================
+describe("Cleanup delivery data", () => {
   it("should delete zone", async () => {
     const res = await app.inject({
       method: "DELETE",

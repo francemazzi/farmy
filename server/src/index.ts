@@ -1,6 +1,9 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 import { config } from "./config.js";
 import { registerSwagger } from "./plugins/swagger.js";
 import { registerAuth } from "./plugins/auth.js";
@@ -14,6 +17,10 @@ import { storefrontRoutes } from "./routes/storefront.js";
 import { shipCalendarRoutes } from "./routes/ship-calendars.js";
 import { deliveryZoneRoutes } from "./routes/delivery-zones.js";
 import { deliverySlotRoutes } from "./routes/delivery-slots.js";
+import { orderRoutes } from "./routes/orders.js";
+import { uploadRoutes } from "./routes/uploads.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function buildApp() {
   const app = Fastify({ logger: !config.isTest });
@@ -23,6 +30,11 @@ export async function buildApp() {
   await registerSwagger(app);
   await app.register(multipart, {
     limits: { fileSize: 10 * 1024 * 1024 },
+  });
+  await app.register(fastifyStatic, {
+    root: resolve(__dirname, "../uploads"),
+    prefix: "/uploads/",
+    decorateReply: false,
   });
 
   await app.register(authRoutes, { prefix: "/api/auth" });
@@ -35,6 +47,8 @@ export async function buildApp() {
   await app.register(shipCalendarRoutes, { prefix: "/api" });
   await app.register(deliveryZoneRoutes, { prefix: "/api" });
   await app.register(deliverySlotRoutes, { prefix: "/api" });
+  await app.register(orderRoutes, { prefix: "/api" });
+  await app.register(uploadRoutes, { prefix: "/api" });
 
   return app;
 }

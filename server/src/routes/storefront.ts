@@ -22,6 +22,7 @@ export async function storefrontRoutes(app: FastifyInstance) {
           stocks: {
             where: { quantity: { gt: 0 } },
             select: {
+              id: true,
               price: true,
               quantity: true,
               isNew: true,

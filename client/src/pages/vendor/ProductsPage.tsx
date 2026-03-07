@@ -5,7 +5,6 @@ import { warehousesApi } from "@/api/warehouses";
 import { stockApi } from "@/api/stock";
 import { queryKeys } from "@/lib/query-keys";
 import { PageSpinner } from "@/components/ui/Spinner";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";

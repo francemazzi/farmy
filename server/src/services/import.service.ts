@@ -204,7 +204,7 @@ async function extractFromPdf(
 ): Promise<ExtractedProduct[]> {
   // Upload file to OpenAI first, then reference it in chat completion
   const file = await openai.files.create({
-    file: new File([buffer], fileName, { type: "application/pdf" }),
+    file: new File([new Uint8Array(buffer)], fileName, { type: "application/pdf" }),
     purpose: "assistants",
   });
 

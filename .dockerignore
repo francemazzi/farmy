@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.env
+*.db
+*.db-wal
+*.db-shm
+dataset
+server/node_modules
+server/dist
+client/node_modules
+client/dist
+scripts/__pycache__
+*.pyc

@@ -11,7 +11,6 @@ import {
   Share2,
   LogOut,
   Menu,
-  X,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx } from "clsx";

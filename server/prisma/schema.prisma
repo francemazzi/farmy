@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -18,6 +19,7 @@ model User {
 
   companies  Company[]
   importLogs ImportLog[]
+  orders     Order[]    @relation("CustomerOrders")
 }
 
 model Company {
@@ -33,6 +35,7 @@ model Company {
   products      Product[]
   importLogs    ImportLog[]
   shipCalendars ShipCalendar[]
+  orders        Order[]
 }
 
 model Warehouse {
@@ -55,12 +58,14 @@ model Product {
   unitOfMeasure String?
   isOrganic     Boolean  @default(false)
   producer      String?
+  imageUrl      String?
   companyId     String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  stocks  Stock[]
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stocks     Stock[]
+  orderItems OrderItem[]
 }
 
 model Stock {
@@ -75,8 +80,9 @@ model Stock {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse  Warehouse   @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
 
   @@unique([productId, warehouseId])
 }
@@ -118,6 +124,7 @@ model DeliveryZone {
 
   shipCalendar  ShipCalendar   @relation(fields: [shipCalendarId], references: [id], onDelete: Cascade)
   deliverySlots DeliverySlot[]
+  orders        Order[]
 }
 
 model DeliverySlot {
@@ -131,4 +138,37 @@ model DeliverySlot {
   deliveryZone DeliveryZone @relation(fields: [deliveryZoneId], references: [id], onDelete: Cascade)
 
   @@unique([deliveryZoneId, dayOfWeek])
+}
+
+model Order {
+  id              String    @id @default(cuid())
+  companyId       String
+  customerUserId  String
+  status          String    @default("PENDING")
+  paymentMethod   String    @default("CASH")
+  deliveryDate    DateTime
+  deliveryZoneId  String?
+  totalAmount     Float
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerUser User          @relation("CustomerOrders", fields: [customerUserId], references: [id], onDelete: Cascade)
+  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  productId  String
+  stockId    String
+  quantity   Float
+  unitPrice  Float
+  totalPrice Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stock   Stock   @relation(fields: [stockId], references: [id], onDelete: Cascade)
 }

@@ -1,0 +1,89 @@
+# ============================================
+# Farmy - Docker Compose for Raspberry Pi
+# Public URL: farm.formit.tech (via Cloudflare Tunnel)
+# ============================================
+services:
+
+  # --- Backend API ---
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: farmy-backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - HOST=0.0.0.0
+      - PORT=7771
+      - DATABASE_URL=file:/app/data/farmy.db
+    volumes:
+      - farmy-data:/app/data
+      - farmy-uploads:/app/uploads
+    ports:
+      - "7771:7771"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7771/api/auth/me", "||", "exit", "0"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # --- Frontend (nginx) ---
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: farmy-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # --- Cloudflare Tunnel (farm.formit.tech) ---
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: farmy-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token eyJhIjoiMWUxZjZkNDVjODMwOWFjYmZlOWRlNTU4ODRhNzQwZTMiLCJ0IjoiODNjN2M5OWUtOGM0OC00OWUyLWE2MTMtMTNjNzdjOWZhZDJlIiwicyI6Ik5EVTFNVFpqTVRrdFlUZ3pNaTAwTUdJNExUazRORFV0T0RJeE9EYzVZMlU1Tm1VeCJ9
+    depends_on:
+      - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # --- Backup cron ---
+  backup:
+    image: alpine:latest
+    container_name: farmy-backup
+    restart: unless-stopped
+    volumes:
+      - farmy-data:/data:ro
+      - farmy-uploads:/uploads:ro
+      - farmy-backups:/backups
+      - ./scripts/backup-cron.sh:/backup.sh:ro
+    entrypoint: /bin/sh
+    command: >
+      -c "chmod +x /backup.sh &&
+          echo '0 2 * * * /backup.sh' | crontab - &&
+          crond -f -l 2"
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+
+volumes:
+  farmy-data:
+    driver: local
+  farmy-uploads:
+    driver: local
+  farmy-backups:
+    driver: local
