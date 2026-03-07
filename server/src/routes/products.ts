@@ -139,4 +139,37 @@ export async function productRoutes(app: FastifyInstance) {
       return reply.send({ message: "Product deleted" });
     },
   });
+
+  app.delete("/companies/:companyId/products/bulk", {
+    preHandler: [requireVenditore],
+    schema: {
+      tags: ["Products"],
+      body: {
+        type: "object",
+        required: ["ids"],
+        properties: {
+          ids: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const { companyId } = request.params as { companyId: string };
+      const { ids } = request.body as { ids: string[] };
+
+      const company = await prisma.company.findFirst({
+        where: { id: companyId, userId: request.user!.userId },
+      });
+      if (!company)
+        return reply.status(404).send({ error: "Company not found" });
+
+      const result = await prisma.product.deleteMany({
+        where: { id: { in: ids }, companyId },
+      });
+
+      return reply.send({
+        message: `${result.count} prodotti eliminati`,
+        deleted: result.count,
+      });
+    },
+  });
 }

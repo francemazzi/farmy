@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
-import { Package, Plus, Search } from "lucide-react";
+import { Package, Plus, Search, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
 
 export function ProductsPage() {
@@ -36,6 +36,8 @@ export function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   // New product form
   const [name, setName] = useState("");
@@ -98,6 +100,41 @@ export function ProductsPage() {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((p) => p.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Eliminare ${selected.size} prodotti?`)) return;
+    setDeleting(true);
+    try {
+      await productsApi.deleteBulk(companyId!, [...selected]);
+      setSelected(new Set());
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.products.byCompany(companyId!),
+      });
+      toast("success", `${selected.size} prodotti eliminati`);
+    } catch (err) {
+      toast("error", err instanceof Error ? err.message : "Errore");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const resetForm = () => {
     setName("");
     setDescription("");
@@ -116,10 +153,22 @@ export function ProductsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Prodotti</h1>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuovo prodotto
-        </Button>
+        <div className="flex gap-2">
+          {selected.size > 0 && (
+            <Button
+              variant="danger"
+              onClick={handleBulkDelete}
+              loading={deleting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Elimina ({selected.size})
+            </Button>
+          )}
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuovo prodotto
+          </Button>
+        </div>
       </div>
 
       {products?.length ? (
@@ -155,6 +204,17 @@ export function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-gray-500">
+                  <th className="w-10 pb-2">
+                    <input
+                      type="checkbox"
+                      checked={
+                        filtered.length > 0 &&
+                        selected.size === filtered.length
+                      }
+                      onChange={toggleAll}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                  </th>
                   <th className="pb-2 font-medium">Nome</th>
                   <th className="pb-2 font-medium">Categoria</th>
                   <th className="pb-2 font-medium">UM</th>
@@ -163,7 +223,18 @@ export function ProductsPage() {
               </thead>
               <tbody className="divide-y">
                 {filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr
+                    key={p.id}
+                    className={`hover:bg-gray-50 ${selected.has(p.id) ? "bg-primary-50" : ""}`}
+                  >
+                    <td className="py-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(p.id)}
+                        onChange={() => toggleSelect(p.id)}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </td>
                     <td className="py-3">
                       <Link
                         to={`/vendor/companies/${companyId}/products/${p.id}`}

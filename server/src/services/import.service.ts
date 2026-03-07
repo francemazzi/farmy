@@ -24,7 +24,12 @@ export async function processImport(
   companyId: string,
   warehouseId: string,
   userId: string
-): Promise<{ importLogId: string; productsCreated: number }> {
+): Promise<{
+  importLogId: string;
+  productsCreated: number;
+  productsUpdated: number;
+  productsUnchanged: number;
+}> {
   const importLog = await prisma.importLog.create({
     data: {
       fileName,
@@ -44,33 +49,114 @@ export async function processImport(
       products = extractFromSpreadsheet(fileBuffer);
     }
 
+    // Fetch existing products for this company with their stocks
+    const existingProducts = await prisma.product.findMany({
+      where: { companyId },
+      include: { stocks: { where: { warehouseId } } },
+    });
+
+    // Build a lookup map by normalized name
+    const existingMap = new Map<
+      string,
+      (typeof existingProducts)[0]
+    >();
+    for (const ep of existingProducts) {
+      existingMap.set(ep.name.trim().toLowerCase(), ep);
+    }
+
     let created = 0;
+    let updated = 0;
+    let unchanged = 0;
+
     await prisma.$transaction(async (tx) => {
       for (const p of products) {
-        const product = await tx.product.create({
-          data: {
-            name: p.name,
-            category: p.category,
-            unitOfMeasure: p.unitOfMeasure,
-            isOrganic: p.isOrganic,
-            producer: p.producer,
-            companyId,
-          },
-        });
+        const key = p.name.trim().toLowerCase();
+        const existing = existingMap.get(key);
 
-        await tx.stock.create({
-          data: {
-            productId: product.id,
-            warehouseId,
-            quantity: 0,
-            price: p.price,
-            isNew: p.isNew,
-            isPromotional: p.isPromotional,
-            lowStock: p.lowStock,
-          },
-        });
+        if (existing) {
+          // Compare product fields and build diff
+          const productDiff: Record<string, any> = {};
+          if (p.category !== undefined && p.category !== (existing.category ?? undefined))
+            productDiff.category = p.category;
+          if (p.unitOfMeasure !== undefined && p.unitOfMeasure !== (existing.unitOfMeasure ?? undefined))
+            productDiff.unitOfMeasure = p.unitOfMeasure;
+          if (p.isOrganic !== existing.isOrganic)
+            productDiff.isOrganic = p.isOrganic;
+          if (p.producer !== undefined && p.producer !== (existing.producer ?? undefined))
+            productDiff.producer = p.producer;
 
-        created++;
+          // Compare stock fields
+          const existingStock = existing.stocks[0];
+          const stockDiff: Record<string, any> = {};
+          if (existingStock) {
+            if (p.price !== existingStock.price) stockDiff.price = p.price;
+            if (p.isNew !== existingStock.isNew) stockDiff.isNew = p.isNew;
+            if (p.isPromotional !== existingStock.isPromotional)
+              stockDiff.isPromotional = p.isPromotional;
+            if (p.lowStock !== existingStock.lowStock) stockDiff.lowStock = p.lowStock;
+          }
+
+          const hasProductChanges = Object.keys(productDiff).length > 0;
+          const hasStockChanges = existingStock
+            ? Object.keys(stockDiff).length > 0
+            : true; // no stock yet = needs creating
+
+          if (hasProductChanges || hasStockChanges) {
+            if (hasProductChanges) {
+              await tx.product.update({
+                where: { id: existing.id },
+                data: productDiff,
+              });
+            }
+            if (existingStock && Object.keys(stockDiff).length > 0) {
+              await tx.stock.update({
+                where: { id: existingStock.id },
+                data: stockDiff,
+              });
+            } else if (!existingStock) {
+              await tx.stock.create({
+                data: {
+                  productId: existing.id,
+                  warehouseId,
+                  quantity: 0,
+                  price: p.price,
+                  isNew: p.isNew,
+                  isPromotional: p.isPromotional,
+                  lowStock: p.lowStock,
+                },
+              });
+            }
+            updated++;
+          } else {
+            unchanged++;
+          }
+        } else {
+          // New product
+          const product = await tx.product.create({
+            data: {
+              name: p.name,
+              category: p.category,
+              unitOfMeasure: p.unitOfMeasure,
+              isOrganic: p.isOrganic,
+              producer: p.producer,
+              companyId,
+            },
+          });
+
+          await tx.stock.create({
+            data: {
+              productId: product.id,
+              warehouseId,
+              quantity: 0,
+              price: p.price,
+              isNew: p.isNew,
+              isPromotional: p.isPromotional,
+              lowStock: p.lowStock,
+            },
+          });
+
+          created++;
+        }
       }
     });
 
@@ -79,7 +165,12 @@ export async function processImport(
       data: { status: "completed" },
     });
 
-    return { importLogId: importLog.id, productsCreated: created };
+    return {
+      importLogId: importLog.id,
+      productsCreated: created,
+      productsUpdated: updated,
+      productsUnchanged: unchanged,
+    };
   } catch (error: any) {
     await prisma.importLog.update({
       where: { id: importLog.id },

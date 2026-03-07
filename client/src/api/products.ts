@@ -37,4 +37,10 @@ export const productsApi = {
 
   delete: (id: string) =>
     apiClient<{ message: string }>(`/products/${id}`, { method: "DELETE" }),
+
+  deleteBulk: (companyId: string, ids: string[]) =>
+    apiClient<{ message: string; deleted: number }>(
+      `/companies/${companyId}/products/bulk`,
+      { method: "DELETE", body: { ids } },
+    ),
 };

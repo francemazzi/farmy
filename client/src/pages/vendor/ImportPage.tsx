@@ -26,6 +26,8 @@ export function ImportPage() {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<{
     productsCreated: number;
+    productsUpdated: number;
+    productsUnchanged: number;
   } | null>(null);
 
   const handleUpload = async () => {
@@ -36,7 +38,11 @@ export function ImportPage() {
       const res = await importApi.upload(companyId!, warehouseId, file);
       setResult(res);
       setFile(null);
-      toast("success", `${res.productsCreated} prodotti importati`);
+      const parts: string[] = [];
+      if (res.productsCreated > 0) parts.push(`${res.productsCreated} nuovi`);
+      if (res.productsUpdated > 0) parts.push(`${res.productsUpdated} aggiornati`);
+      if (res.productsUnchanged > 0) parts.push(`${res.productsUnchanged} invariati`);
+      toast("success", `Prodotti: ${parts.join(", ")}`);
     } catch (err) {
       toast("error", err instanceof Error ? err.message : "Errore durante l'importazione");
     } finally {
@@ -54,7 +60,8 @@ export function ImportPage() {
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
             Carica un file CSV, Excel (XLSX) o PDF con il listino prodotti. I
-            prodotti verranno creati automaticamente con il relativo stock.
+            prodotti nuovi verranno creati, quelli esistenti aggiornati solo se
+            ci sono differenze (prezzo, unità di misura, ecc.).
           </p>
 
           <Select
@@ -91,12 +98,22 @@ export function ImportPage() {
           </Button>
 
           {result && (
-            <div className="flex items-center gap-3 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
-              <CheckCircle className="h-5 w-5" />
-              <span>
-                <strong>{result.productsCreated}</strong> prodotti importati
-                con successo
-              </span>
+            <div className="space-y-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+              <div className="flex items-center gap-2 font-medium">
+                <CheckCircle className="h-5 w-5" />
+                Importazione completata
+              </div>
+              <ul className="ml-7 space-y-0.5">
+                {result.productsCreated > 0 && (
+                  <li><strong>{result.productsCreated}</strong> prodotti nuovi creati</li>
+                )}
+                {result.productsUpdated > 0 && (
+                  <li><strong>{result.productsUpdated}</strong> prodotti aggiornati</li>
+                )}
+                {result.productsUnchanged > 0 && (
+                  <li><strong>{result.productsUnchanged}</strong> prodotti invariati</li>
+                )}
+              </ul>
             </div>
           )}
         </div>
