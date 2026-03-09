@@ -215,9 +215,15 @@ export async function storefrontRoutes(app: FastifyInstance) {
         if (parsed) deliveryDate = parsed;
       }
 
+      // If guest email matches an existing user, link the order to their account
+      const existingUser = guestEmail
+        ? await prisma.user.findUnique({ where: { email: guestEmail.toLowerCase() } })
+        : null;
+
       const order = await prisma.order.create({
         data: {
           companyId,
+          customerUserId: existingUser?.id ?? undefined,
           status: "PENDING",
           paymentMethod: "CASH",
           deliveryDate,
