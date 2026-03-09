@@ -16,7 +16,7 @@ declare module "fastify" {
 
 export async function authenticate(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   const token = request.cookies[config.cookieName];
 
@@ -34,7 +34,7 @@ export async function authenticate(
 
 export async function requireVenditore(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   await authenticate(request, reply);
   if (reply.sent) return;

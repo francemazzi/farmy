@@ -114,13 +114,17 @@ export interface DeliverySlot {
 export interface Order {
   id: string;
   companyId: string;
-  customerUserId: string;
+  customerUserId?: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   deliveryDate: string;
   deliveryZoneId?: string;
   totalAmount: number;
   notes?: string;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  guestAddress?: string;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];

@@ -16,4 +16,11 @@ export const config = {
   openaiApiKey: process.env.OPENAI_API_KEY || "",
   databaseUrl: process.env.DATABASE_URL || "file:./prisma/farmy.db",
   isTest: process.env.NODE_ENV === "test",
+  smtp: {
+    host: process.env.SMTP_HOST || "",
+    port: Number(process.env.SMTP_PORT) || 587,
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASS || "",
+    from: process.env.SMTP_FROM || "Farmy <noreply@farmy.local>",
+  },
 } as const;

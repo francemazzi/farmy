@@ -143,18 +143,22 @@ model DeliverySlot {
 model Order {
   id              String    @id @default(cuid())
   companyId       String
-  customerUserId  String
+  customerUserId  String?
   status          String    @default("PENDING")
   paymentMethod   String    @default("CASH")
   deliveryDate    DateTime
   deliveryZoneId  String?
   totalAmount     Float
   notes           String?
+  guestName       String?
+  guestEmail      String?
+  guestPhone      String?
+  guestAddress    String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customerUser User          @relation("CustomerOrders", fields: [customerUserId], references: [id], onDelete: Cascade)
+  customerUser User?         @relation("CustomerOrders", fields: [customerUserId], references: [id], onDelete: Cascade)
   deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
   items        OrderItem[]
 }

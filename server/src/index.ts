@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import formbody from "@fastify/formbody";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import { resolve, dirname } from "path";
@@ -26,6 +27,7 @@ export async function buildApp() {
   const app = Fastify({ logger: !config.isTest });
 
   await app.register(cors, { origin: true, credentials: true });
+  await app.register(formbody);
   await registerAuth(app);
   await registerSwagger(app);
   await app.register(multipart, {

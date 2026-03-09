@@ -103,6 +103,42 @@ export function VendorOrderDetailPage() {
         </Badge>
       </div>
 
+      {order.guestName && (
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase">
+            Dati cliente (ordine PDF)
+          </h2>
+          <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Nome</dt>
+              <dd className="font-medium">{order.guestName}</dd>
+            </div>
+            {order.guestPhone && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Telefono</dt>
+                <dd className="font-medium">{order.guestPhone}</dd>
+              </div>
+            )}
+            {order.guestEmail && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Email</dt>
+                <dd className="font-medium">
+                  <a href={`mailto:${order.guestEmail}`} className="text-primary-600 hover:underline">
+                    {order.guestEmail}
+                  </a>
+                </dd>
+              </div>
+            )}
+            {order.guestAddress && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Indirizzo</dt>
+                <dd className="font-medium">{order.guestAddress}</dd>
+              </div>
+            )}
+          </dl>
+        </Card>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase">
@@ -111,7 +147,7 @@ export function VendorOrderDetailPage() {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-gray-500">Cliente</dt>
-              <dd className="font-medium">{order.customerUser?.name ?? "-"}</dd>
+              <dd className="font-medium">{order.guestName ?? order.customerUser?.name ?? "-"}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-gray-500">Data ordine</dt>

@@ -88,7 +88,7 @@ export function VendorOrdersPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-gray-900">
-                      {order.customerUser?.name ?? "Cliente"}
+                      {order.guestName ?? order.customerUser?.name ?? "Cliente"}
                     </p>
                     <p className="text-sm text-gray-500">
                       {new Date(order.createdAt).toLocaleDateString("it-IT")}
