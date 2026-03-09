@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { VendorLayout } from "@/layouts/VendorLayout";
 import { CustomerLayout } from "@/layouts/CustomerLayout";
@@ -7,6 +7,8 @@ import { RequireAuth, RequireVenditore } from "@/router/guards";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { SetupPage } from "@/pages/SetupPage";
+import { SetupRedirect } from "@/router/SetupRedirect";
 
 // Vendor pages
 import { DashboardPage } from "@/pages/vendor/DashboardPage";
@@ -33,8 +35,11 @@ import { CustomerOrderDetailPage } from "@/pages/customer/OrderDetailPage";
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/login" replace />,
+    element: <SetupRedirect />,
   },
+
+  // Setup (primo avvio)
+  { path: "/setup", element: <SetupPage /> },
 
   // Auth
   {

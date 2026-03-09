@@ -1,6 +1,10 @@
 # ============================================
-# Farmy - Docker Compose for Raspberry Pi
-# Public URL: farm.formit.tech (via Cloudflare Tunnel)
+# Farmy - Docker Compose
+#
+# Usage:
+#   docker compose up -d                              → solo locale (LAN)
+#   docker compose --profile tunnel-quick up -d       → con URL casuale trycloudflare.com
+#   docker compose --profile tunnel-named up -d       → con tunnel Cloudflare configurato
 # ============================================
 services:
 
@@ -47,12 +51,29 @@ services:
         limits:
           memory: 64M
 
-  # --- Cloudflare Tunnel (farm.formit.tech) ---
-  cloudflared:
+  # --- Cloudflare Quick Tunnel (URL casuale, zero config) ---
+  cloudflared-quick:
     image: cloudflare/cloudflared:latest
-    container_name: farmy-tunnel
+    container_name: farmy-tunnel-quick
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token eyJhIjoiMWUxZjZkNDVjODMwOWFjYmZlOWRlNTU4ODRhNzQwZTMiLCJ0IjoiODNjN2M5OWUtOGM0OC00OWUyLWE2MTMtMTNjNzdjOWZhZDJlIiwicyI6Ik5EVTFNVFpqTVRrdFlUZ3pNaTAwTUdJNExUazRORFV0T0RJeE9EYzVZMlU1Tm1VeCJ9
+    command: tunnel --url http://frontend:80
+    profiles:
+      - tunnel-quick
+    depends_on:
+      - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # --- Cloudflare Named Tunnel (dominio stabile, richiede account) ---
+  cloudflared-named:
+    image: cloudflare/cloudflared:latest
+    container_name: farmy-tunnel-named
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    profiles:
+      - tunnel-named
     depends_on:
       - frontend
     deploy:

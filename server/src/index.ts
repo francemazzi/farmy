@@ -20,6 +20,7 @@ import { deliveryZoneRoutes } from "./routes/delivery-zones.js";
 import { deliverySlotRoutes } from "./routes/delivery-slots.js";
 import { orderRoutes } from "./routes/orders.js";
 import { uploadRoutes } from "./routes/uploads.js";
+import { setupRoutes } from "./routes/setup.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -51,6 +52,7 @@ export async function buildApp() {
   await app.register(deliverySlotRoutes, { prefix: "/api" });
   await app.register(orderRoutes, { prefix: "/api" });
   await app.register(uploadRoutes, { prefix: "/api" });
+  await app.register(setupRoutes, { prefix: "/api/setup" });
 
   return app;
 }
